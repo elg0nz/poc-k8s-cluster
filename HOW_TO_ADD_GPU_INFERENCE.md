@@ -19,7 +19,7 @@ Add one or more GPU-capable machines to the existing k3s cluster as dedicated in
 | NVIDIA Jetson AGX Orin | Ampere 2048-core | 32 GB unified | Edge | $2,000 | ARM, good for edge inference |
 | Used cloud-decom server | A100 40GB / A10G | 40 GB | 1–2U rack | $3,000–8,000 | Fastest option |
 
-**Recommendation for Phase 2:** One used workstation with an RTX 3090 (24GB VRAM) gives you full Llama 3.1 70B at Q4 (~40 GB fits in 24GB VRAM with offload), ~300–500 tok/sec, for ~$1,000–1,200 all-in.
+**Recommendation for Phase 2:** One used workstation with an RTX 3090 (24GB VRAM) gives you ~90–112 tok/sec on Llama 3.1 8B Q4 (fully in VRAM). For 70B Q4 (~40 GB) you'd need CPU offloading, dropping to ~2–5 tok/sec — the 70B doesn't fit in 24GB VRAM. Budget ~$1,000–1,200 all-in.
 
 ### Add a GPU node to the cluster
 
@@ -126,7 +126,7 @@ kubectl exec -it deploy/ollama -n inference -- ollama run llama3.1:8b "Hello"
 The OptiPlex 3080 Micro has a Thunderbolt 3 port. An eGPU enclosure (Razer Core X, Sonnet Breakaway Box) can attach a full-size GPU.
 
 **Caveats:**
-- Thunderbolt 3 = PCIe x4 bandwidth (~16 GB/s) vs native PCIe x16 (~32 GB/s) — ~30–40% inference throughput penalty
+- Thunderbolt 3 = PCIe x4 bandwidth (~4 GB/s) vs native PCIe x16 (~32 GB/s) — but LLM generation happens inside the GPU, so the actual penalty is only ~5–15% for generation (model loading and prompt processing are slower)
 - NVIDIA drivers on Linux with eGPU require manual setup (no plug-and-play)
 - Not hot-swappable — node must be rebooted to attach/detach
 - One eGPU per node maximum
@@ -147,15 +147,18 @@ echo 1 > /sys/bus/thunderbolt/devices/0-1/authorized
 
 | GPU | VRAM | Model | Quantization | Tok/sec |
 |---|---|---|---|---|
-| RTX 3090 | 24 GB | Llama 3.1 70B | Q4_K_M | 25–40 |
-| RTX 3090 | 24 GB | Llama 3.1 8B | Q8 | 200–300 |
-| RTX 3090 | 24 GB | Mistral 7B | Q4_K_M | 250–350 |
-| A100 40GB | 40 GB | Llama 3.1 70B | Q4_K_M | 80–120 |
-| A100 40GB | 40 GB | Llama 3.1 8B | FP16 | 600–900 |
-| RTX 4090 | 24 GB | Llama 3.1 8B | Q8 | 400–600 |
+| RTX 3090 | 24 GB | Llama 3.1 8B | Q4_K_M | 90–112 |
+| RTX 3090 | 24 GB | Llama 3.1 8B | Q8 | 40–50 |
+| RTX 3090 | 24 GB | Llama 3.1 70B | Q4_K_M (offload) | 2–5 |
+| RTX 3090 | 24 GB | Mistral 7B | Q4_K_M | 90–110 |
+| RTX 4090 | 24 GB | Llama 3.1 8B | Q4_K_M | 95–126 |
+| RTX 4090 | 24 GB | Llama 3.1 8B | Q8 | 80–87 |
+| RTX 4090 | 24 GB | Gemma 3 27B | Q4 | 45–55 |
+| A100 40GB | 40 GB | Llama 3.1 8B | FP16 | 55–80 |
+| A100 40GB | 40 GB | Llama 3.1 70B | Q4_K_M | 20–25 |
 
-Compare: CPU-only on i5-10500T → Llama 3.1 8B Q4 = 6–12 tok/sec.
-A single RTX 3090 is ~25–40× faster than one OptiPlex node for inference.
+Compare: CPU-only on i5-10500T → Llama 3.1 8B Q4 = 3–6 tok/sec.
+A single RTX 3090 is ~20–30× faster than one OptiPlex node for inference on the same model.
 
 ---
 
@@ -168,7 +171,7 @@ A single RTX 3090 is ~25–40× faster than one OptiPlex node for inference.
 5. Move LLM inference workloads from the 3 CPU inference nodes → GPU node
 6. Repurpose the 3 freed CPU nodes as general workers
 
-**Result:** ~300–500 tok/sec inference (vs 18–36 tok/sec CPU), 3 more general workers, same cluster management overhead.
+**Result:** ~90–112 tok/sec inference on 8B Q4 (vs 9–18 tok/sec across 3 CPU nodes), 3 more general workers, same cluster management overhead.
 
 ---
 
