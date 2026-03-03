@@ -1,5 +1,6 @@
 # k3s Cluster Plan v1
-**Hardware:** 20× Dell OptiPlex 3080 Micro  
+**Version:** 0.0.3 · [Changelog](CHANGELOG.md)
+**Hardware:** 20× Dell OptiPlex 3080 Micro
 **Stack:** k3s (lightweight Kubernetes)
 
 ---

@@ -1,6 +1,7 @@
 # Cluster Capacity Estimates
 
-**Hardware:** 20× Dell OptiPlex 3080 Micro  
+**Version:** 0.0.3 · [Changelog](CHANGELOG.md)
+**Hardware:** 20× Dell OptiPlex 3080 Micro
 **Status:** Estimates — CPU model TBD (confirm via `dmidecode -t processor`)
 
 ---

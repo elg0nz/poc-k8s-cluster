@@ -1,5 +1,7 @@
 # How to Add GPU Inference to the Cluster
 
+**Version:** 0.0.3 · [Changelog](CHANGELOG.md)
+
 The OptiPlex 3080 Micro has no PCIe slot — it cannot take a discrete GPU. This doc covers the two paths to add GPU inference: external GPU nodes and eGPU via Thunderbolt.
 
 ---
@@ -170,4 +172,4 @@ A single RTX 3090 is ~25–40× faster than one OptiPlex node for inference.
 
 ---
 
-*See `CAPACITY.md` for current CPU-only inference estimates.*
+*See `COMPUTE_CAPACITY.md` for current CPU-only inference estimates.*
