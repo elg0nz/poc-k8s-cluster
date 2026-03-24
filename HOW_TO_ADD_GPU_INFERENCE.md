@@ -1,14 +1,14 @@
 # How to Add GPU Inference to the Cluster
 
-**Version:** 0.0.3 · [Changelog](CHANGELOG.md)
-
 The OptiPlex 3080 Micro has no PCIe slot — it cannot take a discrete GPU. This doc covers the two paths to add GPU inference: external GPU nodes and eGPU via Thunderbolt.
 
 ---
 
 ## Option A — Dedicated GPU Nodes (recommended)
 
-Add one or more GPU-capable machines to the existing k3s cluster as dedicated inference workers. These run alongside the OptiPlex nodes — the cluster scheduler directs inference workloads to GPU nodes via node selectors.
+Add one or more GPU-capable machines to the existing Talos cluster as dedicated inference workers. These run alongside the OptiPlex nodes — the cluster scheduler directs inference workloads to GPU nodes via node selectors.
+
+> **Note:** Talos Linux does not support NVIDIA drivers natively (it is an immutable, API-managed OS with no package manager). GPU nodes must run a standard Linux distribution (e.g., Ubuntu 22.04) and join the cluster as regular Kubernetes workers. The Talos control plane accepts any kubelet that presents a valid bootstrap token.
 
 ### Hardware to consider
 
@@ -23,7 +23,7 @@ Add one or more GPU-capable machines to the existing k3s cluster as dedicated in
 
 ### Add a GPU node to the cluster
 
-1. **Install Ubuntu 22.04 + NVIDIA drivers:**
+1. **Install Ubuntu 22.04 + NVIDIA drivers on the GPU machine:**
 ```bash
 # Install NVIDIA drivers
 sudo apt install nvidia-driver-535 -y
@@ -33,10 +33,28 @@ sudo reboot
 nvidia-smi
 ```
 
-2. **Join the node to k3s:**
+2. **Join the GPU node to the Kubernetes cluster:**
+
+Since the cluster runs Talos Linux, GPU nodes cannot use Talos machine configs (no NVIDIA driver support). Instead, install a standard kubelet on the Ubuntu GPU node and join it as a worker.
+
+Generate a bootstrap token on the launcher box:
 ```bash
-curl -sfL https://get.k3s.io | K3S_URL=https://10.0.1.10:6443 \
-  K3S_TOKEN=<NODE_TOKEN> sh -
+# Create a token valid for 24h
+kubectl --context admin@iva token create --ttl 24h
+```
+
+On the GPU node, install kubeadm/kubelet and join:
+```bash
+# Install kubelet and kubeadm (match the cluster's Kubernetes version)
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.35/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt update && sudo apt install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+# Join the cluster (use the token from above)
+sudo kubeadm join 192.168.10.32:6443 \
+  --token <BOOTSTRAP_TOKEN> \
+  --discovery-token-ca-cert-hash sha256:<CA_CERT_HASH>
 ```
 
 3. **Install NVIDIA device plugin:**
@@ -54,7 +72,7 @@ kubectl label node <gpu-node-name> accelerator=nvidia-gpu
 kubectl label node <gpu-node-name> node-role=inference
 ```
 
-5. **Verify GPU is visible to k3s:**
+5. **Verify GPU is visible to Kubernetes:**
 ```bash
 kubectl describe node <gpu-node-name> | grep nvidia
 # Should show: nvidia.com/gpu: 1
@@ -165,7 +183,7 @@ A single RTX 3090 is ~20–30× faster than one OptiPlex node for inference on t
 ## Recommended Phase 2 Plan
 
 1. Procure one used workstation with RTX 3090 (~$1,000–1,200)
-2. Join it to the existing k3s cluster as a labeled inference node
+2. Join it to the existing Kubernetes cluster as a labeled inference node
 3. Install NVIDIA device plugin (30 min)
 4. Deploy ollama with GPU resource request
 5. Move LLM inference workloads from the 3 CPU inference nodes → GPU node

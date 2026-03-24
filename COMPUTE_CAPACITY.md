@@ -1,8 +1,8 @@
 # Cluster Capacity Estimates
 
-**Version:** 0.0.3 · [Changelog](CHANGELOG.md)
-**Hardware:** 20× Dell OptiPlex 3080 Micro
-**Status:** Estimates — CPU model TBD (confirm via `dmidecode -t processor`)
+**Hardware:** Dell OptiPlex 3080 Micro (3 nodes currently; 20 acquired)
+**OS:** Talos Linux v1.12.5 · Kubernetes v1.35.2 · Cilium v1.19.1
+**Status:** Estimates — CPU model TBD (confirm via `talosctl read /proc/cpuinfo`)
 
 ---
 
@@ -26,11 +26,31 @@ The OptiPlex 3080 Micro shipped with 10th Gen Intel Core (Comet Lake). Two likel
 | i5-10500T (likely) | 6c / 12t | 12 | 2.3 / 3.8 GHz | 35W |
 | i7-10700T (possible) | 8c / 16t | 16 | 2.0 / 4.5 GHz | 35W |
 
-> **Action:** Run `dmidecode -t processor` on any node to confirm. The estimates below cover both cases.
+> **Action:** Run `talosctl read /proc/cpuinfo` on any node to confirm. The estimates below cover both cases.
 
 ---
 
-## Cluster-Wide Compute
+## Current Cluster (3 nodes)
+
+| Node | Role | IP |
+|---|---|---|
+| `talos-zzo-1sj` | control-plane | `192.168.10.32` |
+| `talos-shv-9v1` | worker | `192.168.10.11` |
+| `talos-d33-vyt` | worker | `192.168.10.43` |
+
+| Metric | i5-10500T (3 nodes) | i7-10700T (3 nodes) |
+|---|---|---|
+| Total physical cores | 18 | 24 |
+| Total threads | 36 | 48 |
+| Total RAM | 24 GB | 24 GB |
+| Total NVMe storage | 768 GB raw | 768 GB raw |
+| Max power draw | ~195 W | ~195 W |
+
+---
+
+## Projected Cluster (20 nodes)
+
+> These are projections for when all 20 acquired machines are deployed.
 
 | Metric | i5-10500T (20 nodes) | i7-10700T (20 nodes) |
 |---|---|---|
@@ -38,21 +58,33 @@ The OptiPlex 3080 Micro shipped with 10th Gen Intel Core (Comet Lake). Two likel
 | Total threads | 240 | 320 |
 | Total RAM | 160 GB | 160 GB |
 | Total NVMe storage | 5.12 TB raw | 5.12 TB raw |
-| Usable storage (Longhorn 2-replica) | ~2.5 TB | ~2.5 TB |
 | Max power draw | ~1.3 kW | ~1.3 kW |
 
 ---
 
 ## Kubernetes Allocatable (estimated)
 
-k3s reserves ~10% CPU + ~512MB RAM per node for system overhead.
+Talos Linux is a minimal, immutable OS purpose-built for Kubernetes. It has lower system overhead than general-purpose distributions: the OS runs entirely in RAM (~200MB) with no SSH daemon, package manager, or shell. Estimated system reservation is ~5% CPU + ~400MB RAM per node (kubelet, containerd, Cilium agent, Talos machined).
+
+### Current cluster (3 nodes)
+
+| Resource | Per Node | Cluster Total (3 nodes) |
+|---|---|---|
+| Allocatable CPU (i5) | ~11.4 cores | ~34.2 cores |
+| Allocatable CPU (i7) | ~15.2 cores | ~45.6 cores |
+| Allocatable RAM | ~7.6 GB | ~22.8 GB |
+| Allocatable storage | ~230 GB (local) | ~690 GB (local, no replication) |
+
+### Projected cluster (20 nodes)
 
 | Resource | Per Node | Cluster Total (20 nodes) |
 |---|---|---|
-| Allocatable CPU (i5) | ~10.8 cores | ~216 cores |
-| Allocatable CPU (i7) | ~14.4 cores | ~288 cores |
-| Allocatable RAM | ~7.5 GB | ~150 GB |
-| Allocatable storage | ~128 GB | ~2.5 TB (Longhorn 2x) |
+| Allocatable CPU (i5) | ~11.4 cores | ~228 cores |
+| Allocatable CPU (i7) | ~15.2 cores | ~304 cores |
+| Allocatable RAM | ~7.6 GB | ~152 GB |
+| Allocatable storage | ~230 GB (local) | ~4.6 TB (local, no replication) |
+
+> Storage replication depends on the distributed storage solution chosen (TBD). Usable capacity with 2-replica replication would be roughly half the raw total.
 
 ---
 
@@ -60,15 +92,15 @@ k3s reserves ~10% CPU + ~512MB RAM per node for system overhead.
 
 ### General Workloads
 
-| Workload | Resources | Per Node | Cluster Total | Notes |
-|---|---|---|---|---|
-| NGINX (reverse proxy / static) | 0.1 CPU, 64MB | ~50 instances | ~1,000 instances | Trivial overhead; run as DaemonSet for ingress |
-| FastAPI / Node.js services | 0.5 CPU, 256MB | ~12–15 replicas | ~250–300 replicas | Standard microservice sizing |
-| PostgreSQL | 2 CPU, 2GB RAM | ~3 instances | ~60 instances | Use Longhorn PVC for data persistence |
-| Redis | 0.25 CPU, 512MB | ~10 instances | ~200 instances | — |
-| Jupyter notebooks | 1 CPU, 2GB | ~3 per node | ~60 cluster-wide | Good for member data science workloads |
-| OpenClaw Gateway | 0.5 CPU, 512MB | ~6 instances | ~120 instances | One per team/member; stateless, scales horizontally |
-| OpenClaw Agent sessions | 1 CPU, 1GB | ~5 sessions | ~100 concurrent sessions | Each active agent session ~1 CPU; session count drives sizing |
+| Workload | Resources | Per Node | Current Cluster (3) | Projected (20) | Notes |
+|---|---|---|---|---|---|
+| NGINX (reverse proxy / static) | 0.1 CPU, 64MB | ~50 instances | ~150 | ~1,000 | Trivial overhead; run as DaemonSet for ingress |
+| FastAPI / Node.js services | 0.5 CPU, 256MB | ~12–15 replicas | ~36–45 | ~250–300 | Standard microservice sizing |
+| PostgreSQL | 2 CPU, 2GB RAM | ~3 instances | ~9 | ~60 | Use PVC for data persistence (storage TBD) |
+| Redis | 0.25 CPU, 512MB | ~10 instances | ~30 | ~200 | — |
+| Jupyter notebooks | 1 CPU, 2GB | ~3 per node | ~9 | ~60 | Good for member data science workloads |
+| OpenClaw Gateway | 0.5 CPU, 512MB | ~6 instances | ~18 | ~120 | One per team/member; stateless, scales horizontally |
+| OpenClaw Agent sessions | 1 CPU, 1GB | ~5 sessions | ~15 | ~100 | Each active agent session ~1 CPU; session count drives sizing |
 
 ### LLM Inference (CPU-only, no GPU)
 
@@ -83,32 +115,36 @@ CPU-only inference via `llama.cpp` or `ollama`. Performance scales with core cou
 | Phi-3 Mini 3.8B | Q4_K_M | ~2.5 GB | 12–20 tok/sec | 15–28 tok/sec | Efficient, good for code |
 | DeepSeek-R1 7B | Q4_K_M | ~5 GB | 5–10 tok/sec | 7–14 tok/sec | Strong reasoning, slower |
 
-> ⚠️ 8GB RAM per node is the hard constraint. Models requiring >6GB weights in RAM leave little headroom for the OS and k3s. Stick to Q4 quantized models ≤7B for reliable single-node inference. For larger models, consider model parallelism across 2–3 nodes (experimental with llama.cpp `--split-mode`).
+> 8GB RAM per node is the hard constraint. Models requiring >6GB weights in RAM leave little headroom for the OS and Kubernetes components. Stick to Q4 quantized models <=7B for reliable single-node inference. For larger models, consider model parallelism across 2–3 nodes (experimental with llama.cpp `--split-mode`).
 
-### Parallel Inference (3 inference nodes)
+### Parallel Inference (2 worker nodes — current cluster)
 
-With 3 dedicated inference worker nodes running independent replicas:
+With the 2 current worker nodes running independent replicas:
 
 | Model | Config | Combined throughput |
 |---|---|---|
-| Llama 3.2 3B Q4 | 3 nodes × 1 instance | 45–75 tok/sec |
-| Llama 3.1 8B Q4 | 3 nodes × 1 instance | 18–36 tok/sec |
-| Mistral 7B Q4 | 3 nodes × 1 instance | 24–42 tok/sec |
+| Llama 3.2 3B Q4 | 2 nodes x 1 instance | 30–50 tok/sec |
+| Llama 3.1 8B Q4 | 2 nodes x 1 instance | 12–24 tok/sec |
+| Mistral 7B Q4 | 2 nodes x 1 instance | 16–28 tok/sec |
 
 These are independent replicas (not distributed inference) — each node handles separate requests. Useful for concurrent users, not for running a single large model faster.
+
+> **Projected (3+ dedicated inference nodes):** With dedicated inference workers at scale, combined throughput scales linearly (e.g., 3 nodes running Llama 3.1 8B Q4 = 18–36 tok/sec combined).
 
 ---
 
 ## Storage
 
+> **Storage strategy is TBD.** No distributed storage solution is deployed yet. All capacity below refers to local NVMe on each node.
+
 | Use case | Capacity |
 |---|---|
 | Raw NVMe per node | 256 GB |
-| Longhorn distributed (2-replica) | ~2.5 TB usable |
-| Longhorn distributed (3-replica) | ~1.7 TB usable |
-| Model storage (no replication needed) | Up to 5 TB raw — store models on local node path |
+| Total raw (3 nodes) | 768 GB |
+| Total raw (20 nodes, projected) | 5.12 TB |
+| Model storage (local path) | Store model weights on local node NVMe — no replication needed, and local NVMe is fastest for sequential reads |
 
-> Recommendation: Store LLM model weights on local node storage (not Longhorn) — no need for replication, and local NVMe is faster for sequential reads.
+> When a distributed storage solution is selected, usable capacity will depend on the replication factor (e.g., 2-replica halves raw capacity, 3-replica yields ~1/3).
 
 ---
 
@@ -122,29 +158,38 @@ A typical member running an AI project on the cluster:
 | OpenClaw Gateway | 0.5 | 512MB | One per member team |
 | OpenClaw Agent (1 active session) | 1.0 | 1GB | Scales with concurrent agent activity |
 | FastAPI backend | 0.5 | 256MB | Member's app |
-| PostgreSQL | 2.0 | 2GB | With Longhorn PVC |
+| PostgreSQL | 2.0 | 2GB | With PVC (storage solution TBD) |
 | Redis | 0.25 | 512MB | Cache / task queue |
-| **Total per member** | **~4.35 CPU** | **~4.3 GB** | ~35 full member stacks across cluster |
+| **Total per member** | **~4.35 CPU** | **~4.3 GB** | — |
 
-With 150GB allocatable RAM and ~216 allocatable cores: **the cluster can support ~35 full member stacks simultaneously** before hitting RAM limits.
+**Current cluster (3 nodes):** With ~22.8 GB allocatable RAM and ~34 allocatable cores, the cluster can support **~5 full member stacks** on the 2 worker nodes before hitting RAM limits. The control-plane node should be reserved for system workloads.
+
+**Projected (20 nodes):** With ~152 GB allocatable RAM and ~228 allocatable cores, the cluster can support **~35 full member stacks simultaneously** before hitting RAM limits.
 
 ---
 
-## Realistic Day-One Cluster Layout
-
-Assuming i5-10500T, 3 control plane + 3 inference workers + 14 general workers:
+## Realistic Day-One Cluster Layout (current: 3 nodes)
 
 ```
-Control plane × 3     — k3s system overhead, etcd, API server
-Inference workers × 3 — 1× Llama 3.1 8B Q4 per node (18–36 tok/sec combined)
-General workers × 14  — ~140+ allocatable cores, ~105 GB RAM for user workloads
+Control plane x 1  — Talos system, etcd, API server, Cilium
+Worker x 2         — general workloads + inference
 ```
 
-This gives you a cluster that can:
-- Serve **~200+ concurrent microservices** on the general pool
-- Run **3 independent LLM instances** for member inference (Llama 8B or similar)
-- Store **~2.5 TB** of shared distributed data (Longhorn)
-- Host **Grafana, Prometheus, Loki** with negligible overhead on the general pool
+With 3 nodes, there is no dedicated inference tier. Workers handle both application workloads and inference requests. This is sufficient for PoC/development purposes.
+
+### Projected layout (20 nodes)
+
+```
+Control plane x 3     — Talos system, etcd, API server (HA)
+Inference workers x 3 — 1x Llama 3.1 8B Q4 per node (18–36 tok/sec combined)
+General workers x 14  — ~160+ allocatable cores, ~106 GB RAM for user workloads
+```
+
+This would give the cluster:
+- **~200+ concurrent microservices** on the general pool
+- **3 independent LLM instances** for member inference (Llama 8B or similar)
+- **Grafana, Prometheus, Loki** with negligible overhead on the general pool
+- Distributed storage capacity dependent on chosen solution and replication factor
 
 ---
 
@@ -152,10 +197,12 @@ This gives you a cluster that can:
 
 | Bottleneck | Impact | Mitigation |
 |---|---|---|
-| 8GB RAM per node | Limits model size; no headroom for large quantizations | Stick to Q4 ≤7B; avoid swap in production |
+| 8GB RAM per node | Limits model size; no headroom for large quantizations | Stick to Q4 <=7B; avoid swap in production |
 | 1GbE network | ~125 MB/s per node — fine for most workloads, slow for large model transfers | Pre-stage model weights locally; don't stream from NFS |
 | No GPU | CPU inference only; 5–25 tok/sec vs 500+ tok/sec on A100 | Acceptable for PoC; Phase 2 requires different hardware |
 | No IPMI/iDRAC | Can't remote-power or console into nodes | PiKVM per shelf or Wake-on-LAN + SSH |
+| 3 nodes (current) | Single control-plane node is not HA; limited worker capacity | Scale to 3 CP + N workers as nodes are brought online |
+| No distributed storage | Data is local-only; node failure loses local data | Select and deploy a storage solution (Rook-Ceph, Longhorn, etc.) |
 
 ---
 

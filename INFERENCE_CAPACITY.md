@@ -1,7 +1,5 @@
 # LLM Inference Capacity: Hardware Tiers Compared
 
-**Version:** 0.0.3 · [Changelog](CHANGELOG.md)
-
 **What is "t/s"?** Tokens per second — roughly the speed at which an AI model generates text. One token ≈ ¾ of a word. At 10 t/s, you get about 7-8 words per second — noticeably slower than reading speed. At 40+ t/s, output feels instant.
 
 **What is a "model"?** A large language model (LLM) is the AI brain. Bigger models (more parameters) are generally smarter but need more memory and are slower to run. Think of it like RAM for a program — the model weights must fit in memory or the system grinds to a halt.
@@ -15,7 +13,7 @@
 | Tier | Hardware | Speed | Best Models | Est. Cost |
 |---|---|---|---|---|
 | 1a | OptiPlex cluster — 3 inference nodes | ~9–18 t/s | Llama 3.1 8B, Mistral 7B | Already owned |
-| 1b | OptiPlex cluster — all 20 nodes | ~60–120 t/s | Llama 3.1 8B, Mistral 7B | Already owned |
+| 1b | OptiPlex cluster — scaled to 20 nodes | ~60–120 t/s | Llama 3.1 8B, Mistral 7B | Additional nodes needed |
 | 2 | OptiPlex + USB-C eGPU | ~80–105 t/s | Llama 3.1 8B–27B (quantized) | +$1,500–2,500 |
 | 3 | Mac Mini M4 (single) | ~18–50 t/s | Llama 3.1 8B–70B (quantized) | ~$800–1,400 |
 | 4 | Mac Mini M4 (multi-node) | ~80–100+ t/s | Scaled replicas of smaller models | ~$1,600–5,600 |
@@ -27,7 +25,7 @@
 
 ## Tier 1 — OptiPlex 3080 Micro Cluster (CPU-only)
 
-**What we have:** 20× Dell OptiPlex 3080 Micro mini-PCs, each with an Intel i5/i7 10th-gen CPU, 8GB RAM, and 256GB NVMe SSD. No graphics cards — inference runs entirely on the CPU.
+**What we have:** Currently 3 Dell OptiPlex 3080 Micro mini-PCs (designed to scale to 20 nodes), each with an Intel i5/i7 10th-gen CPU, 8GB RAM, and 256GB NVMe SSD. No graphics cards — inference runs entirely on the CPU. The cluster runs Talos Linux with Kubernetes.
 
 **Speed: ~3–6 t/s per node (8B) | ~9–18 t/s (3 inference nodes) | ~60–120 t/s (all 20 nodes)**
 
@@ -35,7 +33,7 @@ The CPU in a regular PC was never designed for AI. It works — but it's like us
 
 **What fits in memory (8GB per node):**
 - Llama 3.2 3B Q4 (~2 GB) — fits comfortably, **7–12 t/s** per node ✅
-- Llama 3.1 8B Q4 (~4.6 GB) — fits tightly, **3–6 t/s** per node (little headroom for OS + k3s) ⚠️
+- Llama 3.1 8B Q4 (~4.6 GB) — fits tightly, **3–6 t/s** per node (little headroom for OS + Kubernetes) ⚠️
 - Mistral 7B Q4 (~4.5 GB) — similar to 8B, **4–6 t/s** per node ⚠️
 - Anything larger — does not fit in 8GB RAM ❌
 
@@ -43,7 +41,7 @@ The CPU in a regular PC was never designed for AI. It works — but it's like us
 
 *Mode A (default plan — 3 inference nodes):* We dedicate 3 nodes as inference workers, leaving the rest for general workloads (web services, databases, etc.). Each runs one independent model replica, each handling separate user requests. Combined: ~9–18 t/s for 8B Q4, or ~21–36 t/s for 3B Q4.
 
-*Mode B (all 20 nodes as inference):* If the cluster is repurposed entirely for inference — or during off-hours when general workloads are idle — all 20 nodes can each run a model replica. Combined: ~60–120 t/s for Llama 3.1 8B Q4, or ~140–240 t/s for 3B Q4. The 3B model is the sweet spot for these nodes — it fits comfortably and runs at conversational speed.
+*Mode B (scaled to 20 nodes):* If the cluster is expanded to all 20 nodes and repurposed entirely for inference — or during off-hours when general workloads are idle — all 20 nodes can each run a model replica. Combined: ~60–120 t/s for Llama 3.1 8B Q4, or ~140–240 t/s for 3B Q4. The 3B model is the sweet spot for these nodes — it fits comfortably and runs at conversational speed.
 
 **What this is good for:** Experimentation, demos, and scaling concurrent users by running many replicas in parallel. Not suitable for running a single large model — 8GB per node is a hard ceiling on model size. A RAM upgrade to 16GB per node would significantly improve 8B model performance.
 
@@ -71,7 +69,7 @@ A GPU (graphics processing unit) was designed to do millions of simple math oper
 - Llama 3.1 70B Q4 (~40 GB) — too large for 24GB VRAM alone; requires offloading to system RAM, drops to ~2–5 t/s ❌
 - Models up to ~27B Q4 run fully in VRAM ✅
 
-**What this is good for:** A big leap from CPU-only with minimal hardware changes. Good for medium-scale inference of 7B–27B models. One eGPU node delivers more throughput on 8B than all 20 OptiPlex CPUs combined.
+**What this is good for:** A big leap from CPU-only with minimal hardware changes. Good for medium-scale inference of 7B–27B models. One eGPU node delivers more throughput on 8B than all 3 current OptiPlex CPUs combined (and would still outperform all 20 at full scale).
 
 ---
 
@@ -158,7 +156,7 @@ This tier exists for one reason: running genuinely large models locally. The mod
 ```
 Speed (t/s)     Model size supported
     │
-120─┤  ── OptiPlex × 20 nodes (CPU, 8B replicas) ──────────────────
+120─┤  ── OptiPlex × 20 nodes at scale (CPU, 8B replicas) ─────────
     │
 105─┤                             ──── OptiPlex + eGPU (8B model) ──
 100─┤                             ──── Mac Mini M4 × 2 (8B replicas)
@@ -167,7 +165,7 @@ Speed (t/s)     Model size supported
  50─┤                       ──── Mac Mini M4 Pro (8B model) ───────
     │
  25─┤                       ──── Mac Mini M4 base (8B, MLX) ───────
- 18─┤  ── OptiPlex × 3 nodes (CPU, 8B) ─
+ 18─┤  ── OptiPlex × 3 nodes current (CPU, 8B) ─
  15─┤                              ──── Prosumer Rig (Scout 109B) ─
     │
   5─┤                                   ── Mac Mini M4 Pro (70B) ──

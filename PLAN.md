@@ -1,7 +1,7 @@
-# k3s Cluster Plan v1
-**Version:** 0.0.3 · [Changelog](CHANGELOG.md)
-**Hardware:** 20× Dell OptiPlex 3080 Micro
-**Stack:** k3s (lightweight Kubernetes)
+# Talos Kubernetes Cluster Plan
+**Cluster name:** `iva`
+**Hardware:** Dell OptiPlex 3080 Micro (bare-metal)
+**Stack:** Talos Linux + Kubernetes + Cilium
 
 ---
 
@@ -16,175 +16,114 @@
 | Storage | 256GB NVMe SSD per node (WD PC SN530, PCIe Gen3 x4 — confirmed) |
 | Network | 1GbE onboard (Intel) — WiFi not used in cluster |
 | Power | 65W max per node |
-| Total draw | ~1.3kW max (20 nodes) — confirm circuit capacity |
 
 ---
 
 ## Cluster Architecture
 
-### Node Roles (20 nodes total)
+### Node Roles (3 active, designed to scale)
 
-| Role | Count | Notes |
-|---|---|---|
-| Control plane | 3 | HA etcd quorum. Odd number required. |
-| Worker — general | 14 | Deployments, services, ingress |
-| Worker — inference | 3 | Reserved for LLM/AI workloads (if applicable) |
+| Role | Count | IP | Notes |
+|---|---|---|---|
+| Control plane | 1 | `192.168.10.32` | Runs etcd, API server. Single CP for now; can expand to 3 for HA. |
+| Worker | 2 | `192.168.10.11`, `192.168.10.43` | General-purpose workloads. Add more by flashing the same worker image. |
 
-> Adjust inference node count based on actual workload. If no GPU, all workers are general-purpose.
+> Additional workers can be added at any time by flashing the pre-built worker image to a new NVMe and booting. See [RUNBOOK.md](RUNBOOK.md) Part 6.
 
 ### Network Topology
 
 ```
-[Switch / VLAN]
+[Router / DHCP]
      │
-     ├── Control plane × 3  (static IPs: 10.0.1.10–12)
-     ├── Workers × 17       (static IPs: 10.0.1.20–36)
-     └── [Ingress LB]       (MetalLB pool: 10.0.1.100–120)
+     ├── Control plane   (192.168.10.32)
+     ├── Worker 1         (192.168.10.11)
+     └── Worker 2         (192.168.10.43)
 ```
 
-- All nodes on same L2 segment (1GbE switch, unmanaged OK for v1)
-- Static IP assignment via DHCP reservation or `/etc/netplan`
-- DNS: internal CoreDNS (k3s built-in) + upstream resolver
+- All nodes on same L2 segment (192.168.10.0/24)
+- IP assignment via DHCP reservations on the router (by MAC address)
+- DNS: CoreDNS (bundled with Kubernetes) + upstream resolver
+- No VLANs in current setup
+
+### Launcher Box
+
+| Item | Value |
+|---|---|
+| OS | Omarchy (Arch Linux) |
+| Tools | Docker, `talosctl`, `kubectl`, `cilium` CLI, `zstd` |
+| kubeconfig | `~/talos-iva/kubeconfig` (merged into `~/.kube/config`) |
+| talosconfig | `~/talos-iva/talosconfig` |
+| kubectl context | `admin@iva` |
 
 ---
 
 ## Software Stack
 
-### k3s — Why Not Full k8s
+### Talos Linux — Why Not a General-Purpose OS
 
-- Single binary, ships with containerd + flannel + CoreDNS + Traefik + MetalLB
-- ~512MB RAM overhead per node vs ~2GB for kubeadm
-- HA mode with embedded etcd (no external etcd needed)
-- Ideal for edge/bare-metal, production-viable at this scale
+- Immutable, API-managed Linux distribution purpose-built for Kubernetes
+- No SSH, no shell, no package manager — reduced attack surface
+- Automatic handling of swap, kernel parameters, and container runtime
+- Disk image flashed once; config embedded at build time
+- Upgrades are atomic image swaps via `talosctl upgrade`
 
 ### Core Components
 
-| Component | Tool | Notes |
+| Component | Version | Notes |
 |---|---|---|
-| Container runtime | containerd (bundled) | — |
-| CNI | Flannel (bundled) | VXLAN mode |
-| Ingress | Traefik v2 (bundled) | Or swap for nginx-ingress |
-| Load balancer | MetalLB | Layer 2 mode for bare metal |
-| Storage | Longhorn | Distributed block storage across nodes |
-| Secrets | External Secrets Operator + Vault / 1Password | TBD |
-| Monitoring | Prometheus + Grafana | kube-prometheus-stack helm chart |
-| Logging | Loki + Promtail | Lightweight, same Grafana UI |
-| GitOps | Flux v2 | Recommend over ArgoCD for simplicity |
+| OS | Talos Linux v1.12.5 | Immutable, API-driven |
+| Kubernetes | v1.35.2 | Bundled with Talos |
+| Container runtime | containerd v2.1.6 | Bundled with Talos |
+| Kernel | 6.18.15-talos | Talos custom kernel |
+| CNI | Cilium v1.19.1 | Installed via `cilium` CLI with Talos-specific flags |
 
 ---
 
-## Installation Plan
+## Installation Summary
 
-### Phase 1 — Base OS (all 20 nodes)
+All installation steps are documented in [RUNBOOK.md](RUNBOOK.md). The high-level flow:
 
-1. Flash Ubuntu Server 22.04 LTS (x86_64)
-2. Configure static IPs, SSH keys, disable swap
-3. Set hostnames: `cp-01..03`, `wk-01..17`
-4. Harden: `ufw`, `fail2ban`, unattended-upgrades
+1. **Generate config** — `talosctl gen config` produces `controlplane.yaml`, `worker.yaml`, and `talosconfig`
+2. **Build images** — Talos imager container builds raw disk images with config embedded
+3. **Flash NVMe** — `dd` the image onto each node's NVMe (via USB enclosure on the launcher box)
+4. **Boot and bootstrap** — First control-plane node: `talosctl bootstrap` to initialize etcd
+5. **Install Cilium** — `cilium install` with Talos-specific security context flags
+6. **Add workers** — Flash worker image, boot, node auto-joins the cluster
 
-```bash
-# Disable swap (required for k3s)
-swapoff -a
-sed -i '/ swap / s/^/#/' /etc/fstab
-```
-
-### Phase 2 — k3s Install
-
-**Control plane (first node — embedded etcd):**
-```bash
-curl -sfL https://get.k3s.io | sh -s - server \
-  --cluster-init \
-  --tls-san <VIP_OR_LB_IP> \
-  --node-ip 10.0.1.10
-```
-
-**Control plane (nodes 2–3 — join cluster):**
-```bash
-curl -sfL https://get.k3s.io | sh -s - server \
-  --server https://10.0.1.10:6443 \
-  --token <NODE_TOKEN> \
-  --node-ip 10.0.1.11
-```
-
-**Workers (all 17):**
-```bash
-curl -sfL https://get.k3s.io | K3S_URL=https://10.0.1.10:6443 \
-  K3S_TOKEN=<NODE_TOKEN> sh -
-```
-
-> Automate with Ansible — single `ansible-playbook site.yml` runs all 20 nodes.
-
-### Phase 3 — Core Services
-
-```bash
-# Longhorn (distributed storage)
-helm install longhorn longhorn/longhorn \
-  --namespace longhorn-system --create-namespace
-
-# Monitoring stack
-helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-  --namespace monitoring --create-namespace
-
-# MetalLB
-helm install metallb metallb/metallb -n metallb-system --create-namespace
-# Configure IP pool: 10.0.1.100-120
-```
-
-### Phase 4 — GitOps
-
-```bash
-# Flux bootstrap (GitHub)
-flux bootstrap github \
-  --owner=<org> \
-  --repository=<gitops-repo> \
-  --branch=main \
-  --path=./clusters/main
-```
-
-All future deployments via Git PR → merge → auto-sync.
+No manual OS installation, no SSH provisioning, no swap configuration needed.
 
 ---
 
 ## Definition of Done
 
-- [ ] All 20 nodes running, healthy in `kubectl get nodes`
-- [ ] 3-node control plane HA verified (kill one CP node, cluster stays up)
-- [ ] Longhorn storage provisioning working (PVC create/mount/delete)
-- [ ] Prometheus scraping all nodes, Grafana dashboards live
-- [ ] At least one workload deployed via Flux GitOps
-- [ ] Network ingress working (Traefik routing external traffic)
-- [ ] Runbook written: how to add/remove a node, how to upgrade k3s
-
----
-
-## Timeline
-
-| Date | Milestone |
-|---|---|
-| Mar 3 (Mon) | Cable run, nodes powered on, SSH verified, static IPs set |
-| Mar 5 (Wed) | Base OS on all 20 nodes, hostnames set, swap disabled |
-| Mar 7 (Fri) | k3s installed, 3-node HA control plane verified |
-| **Mar 10 (Mon)** | **✅ Target: full cluster running k3s, all 20 nodes healthy** |
-| Mar 12 (Wed) | Core services: Longhorn, MetalLB, Traefik |
-| Mar 14 (Fri) | Prometheus + Grafana live, first workload deployed |
-| Mar 17 (Mon) | GitOps with Flux, runbook written, floor can self-serve |
+- [x] Control-plane node running and healthy (`kubectl get nodes`)
+- [x] At least one worker node joined and Ready
+- [x] Cilium CNI installed and operational (`cilium status`)
+- [x] `kubectl` and `talosctl` working from the launcher box
+- [ ] Expand to 3 control-plane nodes for HA etcd quorum
+- [ ] All available OptiPlex nodes added as workers
+- [ ] Monitoring stack deployed (Prometheus + Grafana)
+- [ ] At least one workload deployed
+- [ ] Load balancer solution deployed (MetalLB or Cilium LB)
 
 ---
 
 ## Open Questions
 
-1. **CPU model** — confirm via `dmidecode -t processor` on any node
-2. **Network** — switch confirmed ✅. VLANs? Uplink speed?
-3. **Power** — confirmed ✅. UPS available?
-4. **Physical access** — confirmed ✅ (on-site). Remote management for later: PiKVM or WoL + SSH.
-5. **Storage goal** — distributed block (Longhorn) vs NFS vs object storage (MinIO)?
-6. **Workload** — LLM inference nodes needed now? GPU plans? (see `how_to_add_gpu_inference.md`)
-7. **Budget** — cabling, UPS included or separate procurement?
+1. **HA control plane** — currently single CP node. Plan to add 2 more for etcd quorum. Requires dedicated IPs and DHCP reservations.
+2. **CPU model** — confirm via `talosctl -n 192.168.10.32 read /proc/cpuinfo` or check BIOS.
+3. **Storage** — no distributed storage yet. Evaluate Longhorn, Rook-Ceph, or local-path-provisioner based on workload needs.
+4. **Load balancer** — no ingress/LB solution yet. Cilium can handle L2/BGP LB, or deploy MetalLB separately.
+5. **Monitoring** — Prometheus + Grafana stack not yet deployed.
+6. **Workloads** — determine first production workloads for the cluster.
+7. **Remote management** — no IPMI/iDRAC on OptiPlex. Consider PiKVM or Wake-on-LAN for remote power cycling.
+8. **Backups** — etcd snapshot strategy for disaster recovery (`talosctl etcd snapshot`).
 
 ---
 
 ## Notes
 
-- OptiPlex 3080 Micro has no IPMI/iDRAC. Remote management: PiKVM per shelf or Wake-on-LAN + SSH.
-- CPU-only LLM inference: llama.cpp on i5/i7 nodes yields ~2–8 tok/sec per node. Viable for 7B quantized models.
-- Pin k3s version at install time. Do not auto-upgrade cluster nodes.
+- OptiPlex 3080 Micro BIOS must be set to AHCI mode (not Intel RST) for NVMe visibility. See RUNBOOK.md hardware notes.
+- Talos config files (`controlplane.yaml`, `worker.yaml`) contain private keys and tokens. Do not commit to version control.
+- The same worker image can be flashed to any number of identical machines — no per-node configuration needed.
+- CPU-only LLM inference: llama.cpp on i5/i7 nodes yields ~2-8 tok/sec per node. Viable for 7B quantized models.

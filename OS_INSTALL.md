@@ -1,49 +1,34 @@
 # OS Install Strategy
 
-Bare minimum Ubuntu Server install on 20 Dell OptiPlex 3080 Micro nodes. Each box gets a default password. No post-install configuration (handled separately).
+Flash Talos Linux raw disk images to the NVMe of each Dell OptiPlex 3080 Micro. Each image has its machine config embedded, so the node self-configures on first boot with no manual intervention.
 
-## Assumptions
+## How it works
 
-- 20 nodes total
-- Download rate: ~35 MB/s
-- Ubuntu Server ISO: ~2 GB
-- Goal: bootable Ubuntu with SSH access and a default password
+1. **Build the image** — Use the Talos imager container to produce a raw disk image with the node's machine config baked in.
+2. **Decompress** — The imager outputs a compressed image; decompress it before flashing.
+3. **Flash via `dd`** — Pull the NVMe from the node, connect it through a USB enclosure, and write the image with `dd`.
+4. **Reinstall and boot** — Put the NVMe back in the node and power on. Talos picks up the embedded config and joins the cluster automatically.
 
-## Option A: Manual USB Install (4 nodes at a time)
+## BIOS prerequisites (Dell OptiPlex 3080 Micro)
 
-Plug in USB, walk through the installer, repeat.
+Before first boot, set the following in BIOS:
 
-| Step                          | Time        |
-|-------------------------------|-------------|
-| Boot USB + installer wizard   | ~10-15 min  |
-| OS writes to disk             | ~8-10 min   |
-| **Per batch (4 nodes)**       | **~20-25 min** |
-| **5 batches (20 nodes)**      | **~2 hours**   |
+- **SATA mode** — set to AHCI (not RAID)
+- **Boot mode** — UEFI
+- **Secure Boot** — Disabled
 
-**Total: ~2 hours hands-on**
+## Comparison with the previous Ubuntu approach
 
-## Option B: PXE + Ansible (all 20 nodes in parallel)
-
-PXE server serves the installer over the network. Autoinstall/preseed handles unattended config (hostname, default password, SSH). All nodes boot and install simultaneously.
-
-| Step                                  | Time           |
-|---------------------------------------|----------------|
-| One-time setup (PXE server, autoinstall config) | ~2-4 hours |
-| PXE boot + unattended install (20 nodes parallel) | ~10-15 min |
-| **Total after setup**                 | **~10-15 min** |
-
-**Total: ~2-4 hours upfront, then ~15 min per deployment**
-
-## Comparison
-
-| | Manual (4 at a time) | PXE + Ansible |
+| | Ubuntu (manual/PXE) | Talos (raw image) |
 |---|---|---|
-| First deployment | ~2 hours | ~2-4 hours |
-| Each re-deployment | ~2 hours | ~15 min |
-| Breaks even after | - | 2-3 re-deployments |
-| Reproducible | No | Yes |
-| Hands-on required | Every node | Power on only |
+| Install method | USB installer wizard or PXE + autoinstall | `dd` a raw image to NVMe |
+| Post-install config | SSH + Ansible or manual setup | None — config is embedded in the image |
+| Reproducibility | Requires automation tooling (Ansible, preseed) | Deterministic by construction |
+| Re-image a node | Re-run installer or PXE boot | Flash a new image, boot |
+| Time per node | ~10-15 min (installer) | ~2-3 min (`dd` + reassemble) |
 
-## Recommendation
+The Ubuntu approach required either walking through the installer on each node or standing up a PXE server with autoinstall configs, followed by Ansible for post-install configuration. Talos eliminates all of that: the image is the entire OS plus config, and no SSH or post-install tooling exists on the node.
 
-For a one-time install, manual at 4-at-a-time is fine (~2 hours). PXE + Ansible pays off if we expect to re-image nodes for OS upgrades, config drift, or testing fresh installs.
+## Full procedure
+
+See [RUNBOOK.md](RUNBOOK.md) for the step-by-step instructions (image build, flash, BIOS setup, cluster bootstrap).

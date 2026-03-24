@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-03-23
+
+### Added
+- `RUNBOOK.md` — complete step-by-step guide to bootstrapping the Talos Linux Kubernetes cluster, including current node inventory, BIOS config, image building, flashing, bootstrapping, and Cilium CNI installation
+
+### Changed
+- All docs updated to reflect migration from k3s + Ubuntu plan to Talos Linux v1.12.5 + Kubernetes v1.35.2 + Cilium v1.19.1
+- `README.md` — updated stack, description, and contents to match actual Talos cluster (3 nodes)
+- `PLAN.md` — rewritten for Talos-based architecture (1 CP + 2 workers, 192.168.10.x network)
+- `COMPUTE_CAPACITY.md` — updated for Talos overhead, current 3-node state with 20-node projections
+- `INFERENCE_CAPACITY.md` — updated node counts and OS references
+- `HOW_TO_ADD_GPU_INFERENCE.md` — updated for Talos cluster (GPU nodes join via kubelet since Talos lacks NVIDIA driver support)
+- `OS_INSTALL.md` — rewritten for Talos raw-image flashing approach (replaces Ubuntu manual/PXE strategy)
+- Removed version headers from individual docs
+
 ## [0.0.3] - 2026-03-03
 
 ### Added
