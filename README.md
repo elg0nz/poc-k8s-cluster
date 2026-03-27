@@ -1,17 +1,44 @@
 # poc-k8s-cluster
 
-Bare-metal Kubernetes cluster on Talos Linux v1.12.5 with 3 Dell OptiPlex 3080 Micro nodes (1 control-plane + 2 workers).
+Bare-metal Kubernetes cluster on Talos Linux v1.12.5 with Dell OptiPlex 3080 Micro nodes.
 
-Cluster name: `iva` · Managed from an Omarchy (Arch Linux) launcher box.
+**Current version:** alpha-0.0.2 | **Next:** alpha-0.1.0
 
-**Stack:** Talos Linux · Kubernetes v1.35.2 · Cilium v1.19.1
+## Documentation
 
----
+Docs are published to **GitHub Pages** automatically on push to `main`.
+
+This project uses [MkDocs](https://www.mkdocs.org/) with the [Material](https://squidfundamentals.com/mkdocs-material/) theme.
+
+### Setup
+
+GitHub Pages must be enabled once in the repo settings:
+
+1. Go to **Settings > Pages**
+2. Under **Source**, select **GitHub Actions**
+3. Push to `main` — the workflow at `.github/workflows/deploy-docs.yml` builds and deploys the site
+
+### Browse locally
+
+```bash
+pip install mkdocs-material
+mkdocs serve
+```
+
+Then open [http://localhost:8000](http://localhost:8000).
 
 ## Contents
 
-- [RUNBOOK.md](RUNBOOK.md) — complete guide to bootstrapping and operating the Talos cluster (current cluster state, troubleshooting)
-- [PLAN.md](PLAN.md) — original cluster plan: architecture, network topology, timeline, open questions
-- [COMPUTE_CAPACITY.md](COMPUTE_CAPACITY.md) — estimated compute, RAM, storage, and general workload capacity for the OptiPlex nodes
-- [INFERENCE_CAPACITY.md](INFERENCE_CAPACITY.md) — LLM inference speed across hardware tiers (OptiPlex, eGPU, Mac Mini M4, prosumer rig)
-- [HOW_TO_ADD_GPU_INFERENCE.md](HOW_TO_ADD_GPU_INFERENCE.md) — Phase 2: adding GPU nodes for real inference speed
+All documentation lives in `docs/`:
+
+| Document | Description |
+|---|---|
+| [Home](docs/index.md) | Landing page and version overview |
+| [Cluster Plan](docs/plan.md) | Architecture, network topology, software stack |
+| [Runbook](docs/runbook.md) | Bootstrapping and operating the Talos cluster |
+| [Compute Capacity](docs/compute-capacity.md) | CPU, RAM, storage, workload estimates |
+| [Inference Capacity](docs/inference-capacity.md) | LLM inference speed across hardware tiers |
+| [GPU Inference](docs/gpu-inference.md) | Adding GPU nodes for inference |
+| [OS Install](docs/os-install.md) | Talos raw-image flashing strategy |
+| [Next Steps](docs/next-steps.md) | Roadmap for alpha-0.1.0 and public-beta-1.0.0 |
+| [Changelog](docs/changelog.md) | Version history |

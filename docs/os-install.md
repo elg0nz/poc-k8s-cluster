@@ -31,4 +31,4 @@ The Ubuntu approach required either walking through the installer on each node o
 
 ## Full procedure
 
-See [RUNBOOK.md](RUNBOOK.md) for the step-by-step instructions (image build, flash, BIOS setup, cluster bootstrap).
+See the [Runbook](runbook.md) for the step-by-step instructions (image build, flash, BIOS setup, cluster bootstrap).

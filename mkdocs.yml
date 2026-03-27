@@ -1,0 +1,34 @@
+site_name: poc-k8s-cluster
+site_description: Bare-metal Kubernetes cluster on Talos Linux — Dell OptiPlex 3080 Micro nodes
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: deep purple
+    accent: teal
+  features:
+    - navigation.sections
+    - navigation.expand
+    - toc.integrate
+
+nav:
+  - Home: index.md
+  - alpha-0.0.2 (current):
+      - Cluster Plan: plan.md
+      - Runbook: runbook.md
+      - Compute Capacity: compute-capacity.md
+      - Inference Capacity: inference-capacity.md
+      - GPU Inference: gpu-inference.md
+      - OS Install: os-install.md
+  - Next Versions:
+      - Next Steps: next-steps.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - tables
+  - admonitions
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight

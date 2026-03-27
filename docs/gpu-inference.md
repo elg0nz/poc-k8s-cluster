@@ -193,4 +193,4 @@ A single RTX 3090 is ~20–30× faster than one OptiPlex node for inference on t
 
 ---
 
-*See `COMPUTE_CAPACITY.md` for current CPU-only inference estimates.*
+*See [Compute Capacity](compute-capacity.md) for current CPU-only inference estimates.*

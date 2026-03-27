@@ -28,7 +28,7 @@
 | Control plane | 1 | `192.168.10.32` | Runs etcd, API server. Single CP for now; can expand to 3 for HA. |
 | Worker | 2 | `192.168.10.11`, `192.168.10.43` | General-purpose workloads. Add more by flashing the same worker image. |
 
-> Additional workers can be added at any time by flashing the pre-built worker image to a new NVMe and booting. See [RUNBOOK.md](RUNBOOK.md) Part 6.
+> Additional workers can be added at any time by flashing the pre-built worker image to a new NVMe and booting. See [Runbook](runbook.md) Part 6.
 
 ### Network Topology
 
@@ -81,7 +81,7 @@
 
 ## Installation Summary
 
-All installation steps are documented in [RUNBOOK.md](RUNBOOK.md). The high-level flow:
+All installation steps are documented in the [Runbook](runbook.md). The high-level flow:
 
 1. **Generate config** — `talosctl gen config` produces `controlplane.yaml`, `worker.yaml`, and `talosconfig`
 2. **Build images** — Talos imager container builds raw disk images with config embedded
@@ -123,7 +123,7 @@ No manual OS installation, no SSH provisioning, no swap configuration needed.
 
 ## Notes
 
-- OptiPlex 3080 Micro BIOS must be set to AHCI mode (not Intel RST) for NVMe visibility. See RUNBOOK.md hardware notes.
+- OptiPlex 3080 Micro BIOS must be set to AHCI mode (not Intel RST) for NVMe visibility. See [Runbook](runbook.md) hardware notes.
 - Talos config files (`controlplane.yaml`, `worker.yaml`) contain private keys and tokens. Do not commit to version control.
 - The same worker image can be flashed to any number of identical machines — no per-node configuration needed.
 - CPU-only LLM inference: llama.cpp on i5/i7 nodes yields ~2-8 tok/sec per node. Viable for 7B quantized models.
