@@ -27,7 +27,7 @@ nav:
 
 markdown_extensions:
   - tables
-  - admonitions
+  - admonition
   - toc:
       permalink: true
   - pymdownx.superfences
