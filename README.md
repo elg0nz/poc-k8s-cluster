@@ -4,6 +4,8 @@ Bare-metal Kubernetes cluster on Talos Linux v1.12.5 with Dell OptiPlex 3080 Mic
 
 **Current version:** alpha-0.0.2 | **Next:** alpha-0.1.0
 
+**[Browse the docs site](https://elg0nz.github.io/poc-k8s-cluster/)**
+
 ## Documentation
 
 Docs are published to **GitHub Pages** automatically on push to `main`.

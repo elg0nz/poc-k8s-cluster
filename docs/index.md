@@ -31,5 +31,6 @@ See [Next Steps](next-steps.md) for the roadmap — getting 4 nodes online (alph
 
 ## Quick Links
 
+- [GitHub repo](https://github.com/elg0nz/poc-k8s-cluster) — source code and raw docs
 - [Changelog](changelog.md) — version history
 - [Next Steps](next-steps.md) — what's planned next
