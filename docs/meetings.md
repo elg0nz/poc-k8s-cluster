@@ -8,10 +8,15 @@
 
 ### Agenda
 
-Discussion and planning for **version 0.5.0**.
+Planning session for **version 0.5.0**. Glo will walk through the hardware setup process, then we'll discuss the software goals for making the cluster accessible to tenants.
 
-1. **Flash Talos onto OptiPlex NVMe drives** — Live demo showing folks how to physically flash the Dell OptiPlex 3080 Micro NVMe hard drives with Talos Linux
-2. **Crimp network cables** — Crimp Ethernet cables for each one of the machines
-3. **Join new nodes to the cluster** — Once we have the power supplies, show how to make the newly flashed drives join the existing cluster
-4. **Cloudflare Tunnel** — Create a Cloudflare tunnel so folks outside the local network can access our cluster
-5. **Host OpenClaw via NemoClaw** — Deploy OpenClaw using NemoClaw on the cluster (see [SOPS + OpenClaw setup guide](sops-openclaw.md))
+#### Part 1 — Hardware (demo + hands-on)
+
+1. **Flashing Talos onto OptiPlex NVMe drives** — Glo will demo the full process: pulling the NVMe from an OptiPlex 3080 Micro, flashing it with the Talos image, and reinstalling it
+2. **Crimping network cables** — How to crimp Ethernet cables for each machine so we're not dependent on pre-made lengths
+3. **Joining new nodes to the cluster** — Once we have the power supplies, how to boot a freshly flashed drive and have it join the existing cluster
+
+#### Part 2 — Software (discussion)
+
+4. **Cloudflare Tunnel** — Set up a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-tunnel/) so users can reach the cluster without us exposing it to the public internet
+5. **Hosting OpenClaw via NemoClaw** — Deploy isolated OpenClaw instances per tenant using NemoClaw, with secrets managed through SOPS + GPG (see [SOPS + OpenClaw setup guide](sops-openclaw.md))
