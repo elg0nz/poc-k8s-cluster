@@ -29,6 +29,10 @@ mkdocs serve
 
 Then open [http://localhost:8000](http://localhost:8000).
 
+## Claude Code
+
+This repo includes a `CLAUDE.md` file that turns [Claude Code](https://claude.ai/code) into a knowledge base assistant for the cluster. Ask it questions about architecture, operations, capacity planning, or the roadmap and it will answer based on the docs in this repo.
+
 ## Contents
 
 All documentation lives in `docs/`:
