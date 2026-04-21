@@ -1,36 +1,39 @@
 # poc-k8s-cluster
 
-Bare-metal Kubernetes cluster on Talos Linux v1.12.5 with 3 Dell OptiPlex 3080 Micro nodes (1 control-plane + 2 workers).
+A bare-metal Kubernetes cluster where folks on our AI floor can safely host their own [OpenClaw](https://github.com/anthropics/openclaw) instances — without sharing API keys, without exposing services to the public internet, and without needing to know how Kubernetes works.
 
-**Cluster name:** `iva` | **Managed from:** Omarchy (Arch Linux) launcher box
+## What we're building
 
-**Stack:** Talos Linux · Kubernetes v1.35.2 · Cilium v1.19.1
+We're turning a shelf of Dell OptiPlex 3080 Micro machines into a shared compute platform. Each person gets their own isolated OpenClaw environment deployed through [NemoClaw](https://github.com/NVIDIA/NemoClaw), with secrets encrypted via [SOPS](https://github.com/getsops/sops) so API keys never appear in plaintext.
 
----
+The cluster runs on [Talos Linux](https://www.talos.dev/) — an immutable, hardened OS built specifically for Kubernetes — with [Cilium](https://cilium.io/) handling networking and tenant isolation.
 
-## Current Version: alpha-0.0.2
+**Access is through [Cloudflare Tunnels](https://developers.cloudflare.com/cloudflare-tunnel/)**, so users can reach their OpenClaw instances from anywhere without us opening ports or exposing the cluster directly to the internet. The tunnel connects outbound from inside our network to Cloudflare's edge, and Cloudflare handles authentication and routing back to the right tenant.
 
-The cluster is bootstrapped and operational with 3 nodes. All documentation below reflects this state.
+## Current status
 
-| Document | Description |
-|---|---|
-| [Cluster Plan](plan.md) | Architecture, network topology, software stack, open questions |
-| [Runbook](runbook.md) | Step-by-step guide to bootstrapping and operating the Talos cluster |
-| [Compute Capacity](compute-capacity.md) | CPU, RAM, storage, and workload capacity estimates |
+**Version:** alpha-0.0.2 — cluster is bootstrapped with 3 nodes (1 control-plane + 2 workers). Not yet serving tenants.
+
+**Next milestone:** [v0.5.0](meetings.md) — flash remaining machines, crimp cables, set up Cloudflare Tunnel, and deploy the first OpenClaw instances.
+
+See [Next Steps](next-steps.md) for the full roadmap.
+
+## Documentation
+
+| Document | What it covers |
+|----------|---------------|
+| [Cluster Plan](plan.md) | Architecture, network topology, hardware, software stack |
+| [Runbook](runbook.md) | Step-by-step guide to bootstrapping and operating the cluster |
+| [Compute Capacity](compute-capacity.md) | CPU, RAM, storage specs and projections |
 | [Inference Capacity](inference-capacity.md) | LLM inference speed across hardware tiers |
-| [GPU Inference](gpu-inference.md) | Phase 2: adding GPU nodes for real inference speed |
+| [GPU Inference](gpu-inference.md) | Phase 2: adding GPU nodes |
 | [OS Install](os-install.md) | Talos raw-image flashing strategy |
-
----
-
-## Next: alpha-0.1.0 / public-beta-1.0.0
-
-See [Next Steps](next-steps.md) for the roadmap — getting 4 nodes online (alpha-0.1.0) and scaling to 40+ machines for the full AI floor (public-beta-1.0.0).
-
----
+| [SOPS + OpenClaw](sops-openclaw.md) | Multi-tenant OpenClaw deployment with ArgoCD and SOPS (WIP) |
+| [Meetings](meetings.md) | Agendas and notes |
+| [Next Steps](next-steps.md) | Roadmap for upcoming versions |
+| [Changelog](changelog.md) | Version history |
 
 ## Quick Links
 
 - [GitHub repo](https://github.com/elg0nz/poc-k8s-cluster) — source code and raw docs
-- [Changelog](changelog.md) — version history
-- [Next Steps](next-steps.md) — what's planned next
+- [Browse the docs site](https://elg0nz.github.io/poc-k8s-cluster/)
