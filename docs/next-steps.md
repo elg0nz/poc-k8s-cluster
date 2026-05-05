@@ -11,12 +11,7 @@
 
 **Current state:** Only the Omarchy box (DNS server), one control-plane node, and zero worker nodes are running. The bottleneck is power supplies — we don't have enough to power the remaining machines.
 
-| Item | Qty | Why | Link |
-|---|---|---|---|
-| OptiPlex 65W chargers (or USB-C chargers with barrel adapters) | 4+ | Power the 4 already-flashed nodes | — |
-| DYMO LetraTag Bluetooth label maker | 1 | Label each machine with hostname, IP, and specs | [DYMO LetraTag on Amazon](https://www.amazon.com/DYMO-LetraTag-Bluetooth-Technology-Pistachio/dp/B0BC9RG8JS/) |
-
-With 4 chargers we can bring up 1 control-plane + 3 workers, which is enough to run real workloads.
+See [Purchase Proposal](purchase-proposal.md) for the itemized hardware order needed to power the cluster.
 
 ### Hardware Inventory
 

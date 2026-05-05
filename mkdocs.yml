@@ -23,6 +23,7 @@ nav:
       - OS Install: os-install.md
   - Next Versions:
       - Next Steps: next-steps.md
+      - Purchase Proposal: purchase-proposal.md
   - Meetings: meetings.md
   - SOPS + OpenClaw: sops-openclaw.md
   - Changelog: changelog.md
